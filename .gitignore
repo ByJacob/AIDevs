@@ -1,3 +1,5 @@
 /old
 .env
 __pycache__
+/2024-AI2R/tasks/tmp/
+.venv
