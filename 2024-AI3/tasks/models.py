@@ -1,18 +1,29 @@
+import os
 from abc import ABC, abstractmethod
+from typing import Tuple
 
-import ollama
+from langfuse.decorators import langfuse_context
+from langfuse.openai import OpenAI
+
+langfuse_context.configure(
+    secret_key=os.getenv('AIDEVS3_LANGFUSE_SECRET_KEY'),
+    public_key=os.getenv('AIDEVS3_LANGFUSE_PUBLIC_KEY'),
+    host=os.getenv('AIDEVS3_LANGFUSE_HOST'),
+)
 
 
 class __BaseModel(ABC):
 
-    def __init__(self, debug=False, **kwargs):
+    def __init__(self, model, debug=False, **kwargs):
         self.debug = debug
+        self.model = model
 
     @abstractmethod
-    def _chat(self, messages):
+    # shoud return input_tokens, output_token and response
+    def _chat(self, messages) -> Tuple[int, int, str]:
         pass
 
-    def chat(self, messages):
+    def chat(self, messages, **kwargs):
         if self.debug:
             print("*" * 20)
             print("MESSAGES: ", messages)
@@ -39,16 +50,18 @@ class __BaseModel(ABC):
 class __OLLAMAModel(__BaseModel):
 
     def __init__(self, model, **kwargs):
-        super().__init__(**kwargs)
-        self.model = model
+        super().__init__(model, **kwargs)
+        self.client = OpenAI(
+            base_url='http://localhost:11434/v1',
+            api_key='ollama',  # required, but unused
+        )
 
-    def _chat(self, messages) -> str:
-        try:
-            response = ollama.chat(model=self.model, messages=messages)
-            return response['message']['content']
-        except ollama.ResponseError as e:
-            print('Error:', e.error)
-            raise e
+    def _chat(self, messages):
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages
+        )
+        return response.choices[0].message.content
 
 
 class Gemma2P2B(__OLLAMAModel):

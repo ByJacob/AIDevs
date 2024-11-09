@@ -1,6 +1,5 @@
 import re
 
-
 def find_flag(text):
     pattern = r"\{\{FLG:.*?\}\}"
     # Find all matches

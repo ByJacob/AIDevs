@@ -11,7 +11,8 @@ python = "^3.12"
 requests = "^2.31.0"
 requests-random-user-agent = "^2023.2.15"
 beautifulsoup4 = "^4.12.3"
-ollama = "^0.3.3"
+langfuse = "^2.53.9"
+openai = "^1.54.3"
 
 
 [build-system]
