@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    environment:
+      WEBUI_AUTH: "false"
+    ports:
+      - "3000:8080"
+    volumes:
+      - open-webui:/app/backend/data
+
+  pipelines:
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: pipelines
+    ports:
+      - "9099:9099"
+    volumes:
+      - pipelines:/app/pipelines
+
+volumes:
+  open-webui:
+  pipelines:

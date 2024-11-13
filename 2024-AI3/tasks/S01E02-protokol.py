@@ -71,6 +71,9 @@ def main():
         pass
     print("FLAG")
     print(result)
+    langfuse_context.update_current_observation(
+        output=result
+    )
 
 if __name__ == '__main__':
     main()

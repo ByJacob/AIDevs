@@ -13,6 +13,8 @@ requests-random-user-agent = "^2023.2.15"
 beautifulsoup4 = "^4.12.3"
 langfuse = "^2.53.9"
 openai = "^1.54.3"
+tinytag = "^2.0.0"
+pillow = "^11.0.0"
 
 
 [build-system]
