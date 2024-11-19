@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 import re
 import zipfile
@@ -7,6 +8,9 @@ from io import BytesIO
 import requests
 
 from PIL import Image
+from qdrant_client import QdrantClient
+
+from qdrant_client.models import Distance, VectorParams
 
 
 def find_flag(text):
@@ -25,7 +29,7 @@ def create_message(role, text):
     return {"role": role, "content": text}
 
 
-def create_message_with_image(role, text, images_path, images_format):
+def create_message_with_image(role, text, images_path, images_format, detail="high"):
     if images_format is None:
         raise NotImplementedError(f"Model cannot use chat with image")
     content = [dict(type="text", text=text)]
@@ -35,25 +39,37 @@ def create_message_with_image(role, text, images_path, images_format):
             "type": "image_url",
             "image_url": {
                 "url": f"{base64_image}",
-                "detail": "high"
+                "detail": detail
             },
         })
     return create_message(role, content)
 
 
-def download_and_extract_zip(extract_dir, url):
+def download_file(extract_dir, url):
     if not os.path.exists(extract_dir):
         os.makedirs(extract_dir)
-    zip_path = os.path.join(extract_dir, url.split('/')[-1])
+    filename = os.path.join(extract_dir, url.split('/')[-1])
     # Check if the file is already downloaded
-    if not os.path.exists(zip_path):
+    if not os.path.exists(filename):
         # Download the file
         response = requests.get(url)
-        with open(zip_path, "wb") as file:
+        with open(filename, "wb") as file:
             file.write(response.content)
+        return True
+    return False
+
+
+def download_and_extract_zip(extract_dir, url):
+    if download_file(extract_dir, url):
+        zip_path = os.path.join(extract_dir, url.split('/')[-1])
+        extract_zip(zip_path, extract_dir)
+
+
+def extract_zip(zip_path, extract_dir, pwd=None):
+    if not os.path.exists(extract_dir):
         print("Extracting the contents of the zip file...")
         with zipfile.ZipFile(str(zip_path), "r") as zip_ref:
-            zip_ref.extractall(extract_dir)
+            zip_ref.extractall(extract_dir, pwd=bytes(str(pwd), 'utf-8'))
 
 
 def resize_to_best_format_base64(image_path, formats):
@@ -92,3 +108,49 @@ def resize_to_best_format_base64(image_path, formats):
         # Format the base64 string with data URI prefix
         mime_type = f"image/{original_format.lower()}"
         return f"data:{mime_type};base64,{base64_image}"
+
+
+def strip_text(text, left, right):
+    # Find the position of the first '{' and the last '}'
+    left = text.find('{')
+    right = text.rfind('}')
+
+    # Return the content between the braces if both are found
+    if left != -1 and right != -1:
+        return text[left + 1:right]
+    return None
+
+
+def extract_md_link(text):
+    return strip_text(text, '(', ')')
+
+
+def extract_json(text):
+    return_str = strip_text(text, '{', '}')
+    if return_str is None:
+        return None
+    try:
+        _ = json.loads(f"{{{return_str}}}")
+        return f"{{{return_str}}}"
+    except:
+        return None
+
+
+def init_qdrant(model, qdrant_collection_name):
+    client = QdrantClient(
+        host=os.getenv('AIDEVS3_QDRANT_HOST'),
+        port=6333,
+        api_key=os.getenv('AIDEVS3_QDRANT_KEY')
+    )
+    all_collections = list(map(lambda x: x.name, client.get_collections().collections))
+    if qdrant_collection_name not in all_collections:
+        result = model.embedding("PING")
+        pass
+        client.create_collection(
+            qdrant_collection_name,
+            vectors_config=VectorParams(
+                size=len(result.embedding),
+                distance=Distance.COSINE,
+            ),
+        )
+    return client

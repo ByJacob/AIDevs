@@ -15,6 +15,10 @@ langfuse = "^2.53.9"
 openai = "^1.54.3"
 tinytag = "^2.0.0"
 pillow = "^11.0.0"
+pytesseract = "^0.3.13"
+tqdm = "^4.67.0"
+pyhtml2md = "^1.6.0"
+qdrant-client = "^1.12.1"
 
 
 [build-system]

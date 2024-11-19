@@ -107,12 +107,12 @@ class __OpenAIModel(__BaseModel):
         )
         return response.choices[0].message.content
 
+
 class OpenAi4oMini(__OpenAIModel):
     def __init__(self, **kwargs):
         model = "gpt-4o-mini"
         formats = [(512, 512)]
         super().__init__(model, formats=formats, **kwargs)
-        self.client = OpenAI()
 
 
 class OpenAi4o(__OpenAIModel):
@@ -120,7 +120,6 @@ class OpenAi4o(__OpenAIModel):
         model = "gpt-4o"
         formats = []
         super().__init__(model, formats=formats, **kwargs)
-        self.client = OpenAI()
 
 
 class OpenAi35Turbo(__OpenAIModel):
@@ -145,6 +144,12 @@ class Gemma2P2B(__OLLAMAModel):
 
     def __init__(self, **kwargs):
         super(Gemma2P2B, self).__init__("gemma2:2b", **kwargs)
+
+
+class Gemma2P9B(__OLLAMAModel):
+
+    def __init__(self, **kwargs):
+        super(Gemma2P9B, self).__init__("gemma2:9b", **kwargs)
 
 
 class Llama32P1B(__OLLAMAModel):
@@ -172,6 +177,11 @@ class BielikP11B(__OLLAMAModel):
         super(BielikP11B, self).__init__("hf.co/speakleash/Bielik-11B-v2.3-Instruct-GGUF:Q5_K_M", **kwargs)
 
 
+class Phi35P38B(__OLLAMAModel):
+    def __init__(self, **kwargs):
+        super(Phi35P38B, self).__init__("phi3.5:latest", **kwargs)
+
+
 class LlavaP7B(__OLLAMAModel):
 
     def __init__(self, model="llava:7b", **kwargs):
@@ -183,3 +193,10 @@ class LlavaP13B(LlavaP7B):
     def __init__(self, **kwargs):
         model = "llava:13b"
         super().__init__(model, **kwargs)
+
+
+class Llava32visionP11B(__OLLAMAModel):
+    def __init__(self, **kwargs):
+        model = "llama3.2-vision"
+        formats = []
+        super().__init__(model, formats=formats, **kwargs)
