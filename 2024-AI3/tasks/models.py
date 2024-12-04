@@ -1,14 +1,19 @@
 import copy
+import hashlib
 import json
 import os
+import pickle
 import re
 from abc import ABC, abstractmethod
 from typing import Tuple
 
+import litellm
 from langfuse.decorators import langfuse_context, observe
 from langfuse.openai import OpenAI
 
-from utils import resize_to_best_format_base64
+os.environ["LANGFUSE_SECRET_KEY"] = os.environ["AIDEVS3_LANGFUSE_SECRET_KEY"]
+os.environ["LANGFUSE_PUBLIC_KEY"] = os.environ["AIDEVS3_LANGFUSE_PUBLIC_KEY"]
+os.environ["LANGFUSE_HOST"] = os.environ["AIDEVS3_LANGFUSE_HOST"]
 
 langfuse_context.configure(
     secret_key=os.getenv('AIDEVS3_LANGFUSE_SECRET_KEY'),
@@ -16,6 +21,32 @@ langfuse_context.configure(
     host=os.getenv('AIDEVS3_LANGFUSE_HOST'),
 )
 
+litellm.success_callback = ["langfuse"]
+litellm.failure_callback = ["langfuse"]
+
+def cache_llm_request(func, messages, **kwargs):
+    # Generate a unique hash from the function name and kwargs
+    kwargs['messages'] = messages
+    kwargs_str = json.dumps(kwargs, sort_keys=True)  # Convert kwargs to a consistent JSON string
+    hash_obj = hashlib.md5((func.__name__ + kwargs_str).encode())  # Create MD5 hash with function name
+    hash_filename = os.path.join("tmp", "models", f"{hash_obj.hexdigest()}.pkl")
+    parent_dor = os.path.dirname(hash_filename)
+    if not os.path.exists(parent_dor):
+        os.makedirs(parent_dor)
+
+    # Check if the file exists
+    if os.path.exists(hash_filename):
+        with open(hash_filename, 'rb') as file:
+            # print("Cache found. Loading result.")
+            return pickle.load(file)  # Load and return the cached result
+    else:
+        # print("No cache found. Executing function.")
+        if "seed" in kwargs.keys():
+            kwargs.pop("seed")
+        result = func(**kwargs)  # Execute the function with kwargs
+        with open(hash_filename, 'wb') as file:
+            pickle.dump(result, file)  # Save the result to the cache
+        return result  # Return the result
 
 class __BaseModel(ABC):
 
@@ -28,7 +59,7 @@ class __BaseModel(ABC):
 
     @abstractmethod
     # shoud return input_tokens, output_token and response
-    def _chat(self, messages, **kwargs) -> Tuple[int, int, str]:
+    def _chat(self, messages, **kwargs) -> str:
         pass
 
     def chat(self, messages, **kwargs):
@@ -38,7 +69,7 @@ class __BaseModel(ABC):
             print("*" * 20)
             print("MESSAGES: ", new_messages)
             print("*" * 20)
-        response = self._chat(messages, **kwargs)
+        response = cache_llm_request(self._chat, messages, **kwargs)
         if self.debug:
             print("RESPONSE: ", response)
             print("*" * 20)
@@ -111,7 +142,7 @@ class __OpenAIModel(__BaseModel):
 class OpenAi4oMini(__OpenAIModel):
     def __init__(self, **kwargs):
         model = "gpt-4o-mini"
-        formats = [(512, 512)]
+        formats = []
         super().__init__(model, formats=formats, **kwargs)
 
 
@@ -195,8 +226,17 @@ class LlavaP13B(LlavaP7B):
         super().__init__(model, **kwargs)
 
 
-class Llava32visionP11B(__OLLAMAModel):
+class Llama32visionP11B(__OLLAMAModel):
     def __init__(self, **kwargs):
         model = "llama3.2-vision"
         formats = []
         super().__init__(model, formats=formats, **kwargs)
+
+class Clause35Sonet(__BaseModel):
+
+    def __init__(self, **kwargs):
+        os.environ["ANTHROPIC_API_KEY"] = os.environ["AIDEVS3_ANTHROPIC_API_KEY"]
+        super().__init__("claude-3-5-sonnet-20241022", **kwargs)
+    def _chat(self, messages, **kwargs) -> str:
+        response = litellm.completion(model=self.model, messages=messages)
+        return response.choices[0].message.content

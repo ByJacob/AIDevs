@@ -62,11 +62,13 @@ def download_file(extract_dir, url):
 def download_and_extract_zip(extract_dir, url):
     if download_file(extract_dir, url):
         zip_path = os.path.join(extract_dir, url.split('/')[-1])
+        extract_dir = os.path.join(extract_dir, "zip")
         extract_zip(zip_path, extract_dir)
 
 
 def extract_zip(zip_path, extract_dir, pwd=None):
     if not os.path.exists(extract_dir):
+        os.makedirs(extract_dir)
         print("Extracting the contents of the zip file...")
         with zipfile.ZipFile(str(zip_path), "r") as zip_ref:
             zip_ref.extractall(extract_dir, pwd=bytes(str(pwd), 'utf-8'))

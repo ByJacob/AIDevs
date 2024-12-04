@@ -2,8 +2,8 @@ import json
 import os
 from abc import abstractmethod, ABC
 
-from langfuse.decorators import langfuse_context
-from openai import OpenAI
+from langfuse.decorators import langfuse_context, observe
+from langfuse.openai import OpenAI
 from openai.types import Embedding
 
 langfuse_context.configure(
@@ -49,8 +49,18 @@ class __OpenAIModel(__BaseModel):
         self.client = OpenAI()
         self.formats = formats
 
+    @observe(capture_input=False, capture_output=False, as_type="generation")
     def _embedding(self, text, **kwargs) -> Embedding:
+        langfuse_context.update_current_observation(
+            input=text,
+            model=self.embedding_model,
+        )
         response = self.client.embeddings.create(input=text, model=self.embedding_model)
+        langfuse_context.update_current_observation(
+            usage={
+                "input": response.usage.prompt_tokens,
+            }
+        )
         return response.data[0]
 
 
